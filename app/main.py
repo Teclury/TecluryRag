@@ -1,4 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import hashlib
 import os
 from pydantic import BaseModel
 from datetime import datetime
@@ -25,25 +28,92 @@ if not OPENAI_API_KEY:
 app = FastAPI(
     title="Teclury RAG Chatbot with Rolling Summary Memory",
     description="RAG + Memory using ONLY rolling summary",
-    version="5.0.0"
+    version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 vectorstore: FAISS | None = None
 rag_chain = None
 
-# session store
-# { session_id: {summary: str, last_activity: datetime}}
+
+# session summary store
 store = {}
+
+# simple per-session rate limiter
+rate_limiters = {}
+MAX_RPM = 5
+MAX_RPD = 30
 
 
 class ChatRequest(BaseModel):
     query: str
-    session_id: str
+    session_id: str | None = None
 
 
-# ----------------------------------------------------
-# Vectorstore
-# ----------------------------------------------------
+# ---------------- RATE LIMIT ---------------- #
+
+def check_rate_limit(session_id: str):
+    now = datetime.utcnow()
+
+    if session_id not in rate_limiters:
+        rate_limiters[session_id] = {
+            "minute": [0, now],
+            "day": [0, now]
+        }
+
+    minute_count, minute_time = rate_limiters[session_id]["minute"]
+    day_count, day_time = rate_limiters[session_id]["day"]
+
+    # reset minute bucket
+    if (now - minute_time).total_seconds() >= 60:
+        minute_count = 0
+        minute_time = now
+
+    # reset day bucket
+    if (now - day_time).days >= 1:
+        day_count = 0
+        day_time = now
+
+    # minute limit
+    if minute_count >= MAX_RPM:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "success",
+                "answer": "Sorry about that! You’ve hit the rate limit for now. Please try again in a minute.",
+                "session_id": session_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+    # daily limit
+    if day_count >= MAX_RPD:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "success",
+                "answer": "Daily limit reached. Please try again tomorrow or contact our team.",
+                "session_id": session_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+    # increment counters
+    rate_limiters[session_id]["minute"] = [minute_count + 1, minute_time]
+    rate_limiters[session_id]["day"] = [day_count + 1, day_time]
+
+    return None
+
+
+# ---------------- VECTOR STORE ---------------- #
+
 def build_vectorstore():
     file_path = "data/knowledge.txt"
     if not os.path.exists(file_path):
@@ -52,105 +122,114 @@ def build_vectorstore():
     loader = TextLoader(file_path, encoding="utf-8")
     docs = loader.load()
 
-    splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
+    # smaller chunks = fewer tokens
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
     chunks = splitter.split_documents(docs)
 
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
     return FAISS.from_documents(chunks, embeddings)
 
 
-# ----------------------------------------------------
-# RAG + rolling summary prompt
-# ----------------------------------------------------
+# ---------------- RAG SETUP ---------------- #
+
 def setup_rag_chain(vector_store):
 
     llm = ChatOpenAI(
         model="gpt-4.1-mini",
-        temperature=0.3
+        temperature=0.3,
+        max_tokens=300  # cap output tokens
     )
 
     prompt = ChatPromptTemplate.from_template("""
-You are **Padayappa**, the official AI support and sales assistant for **Teclury**, an IT and AI solutions company. You always speak on behalf of Teclury using “we”, “our team”, and “our services”.
+You are Nora, a friendly and professional AI assistant for Teclury (IT & AI solutions company). Speak like a real human team member.
 
-Your primary goals:
-- understand the user’s need
+ROLE
+- understand what the user needs
+- reply briefly and clearly
 - explain how Teclury can help
-- invite them to continue the conversation or contact us
-- keep tone warm, concise, helpful, human
+- end with ONE small follow-up question
+- always speak as “we / our team / our services”
 
-LANGUAGE BEHAVIOR
-- detect the user’s language and reply in that language
-- If the message is mostly Tamil words written in English letters, reply in proper Tamil script.
-- Do NOT treat broken English as Tanglish.
--Like if find the users language and follow this rules accordingly.
+LANGUAGE RULES (STRICT)
+**Language Detection & Adaptation (Crucial):** - **General Rule:** Identify the language of the user's question (English, Tamil, Malayalam, Telugu, Kannada, Hindi, etc.) and **reply in that exact same language and script.**
+       - **Tanglish Rule:** If the user types in **Tanglish** (Tamil words using English letters), your response must be converted into **proper Tamil script (தமிழ்)**.
+       - **Example:** - User: "Neenga enna services tharinga?" (Tanglish) -> You: "நாங்கள் Web Development மற்றும் AI சேவைகளை வழங்குகிறோம்." (Tamil)
+         - User: "Sughamaano?" (Malayalam) -> You: "അതെ, സുഖമാണ്! നിങ്ങൾക്ക് എന്ത് ഐടി സഹായമാണ് വേണ്ടത്?" (Malayalam)
 
 
-GREETING BEHAVIOR
-- if user says hi/hello/how are you
-  → introduce yourself clearly:
-  “I’m Padayappa, your AI support agent from Teclury. How can we help you today?”
-- otherwise, do NOT re-introduce yourself every message
+GREETING RULE
+If user says only hello/hi/vanakkam/namaste/how are you:
+→ Introduce yourself ONCE per conversation:
+“Hi! I’m Nora, your AI assistant from Teclury. How can we help you today?”
+If they ask how are you → say you’re doing great and ask them back
+Do not introduce again if summary exists
 
-COMPANY VOICE & RULES
-- speak as Teclury (“we”, “our company”)
-- NEVER discuss pricing unless explicitly asked
-- ALWAYS keep responses short and friendly
-- when info is unknown, say:
-  “We don’t have those details right now. Please contact our team at +91 8526521533 or contact@teclury.in.”
+SCOPE OF ANSWERS
+Answer ONLY Teclury-related topics:
+- software
+- websites / apps
+- AI / chatbots / automation
+- Teclury company / team / services / products
+If unrelated:
+“I’m here to help with Teclury’s products and services. What are you looking to build or improve?”
 
-SALES CONVERSATION PRIORITY
-Whenever possible, do the following:
-1) identify the user’s goal
-2) suggest matching Teclury services (AI chatbot, websites, backend, automation, etc.)
-3) ask a **qualifying question**, such as:
-   - “What kind of project are you planning?”
-   - “Is this for a business or personal use?”
-   - “Do you already have a website or app?”
+ACHIEVEMENTS ANSWER
+“We’re focused on building innovative products. Our clients’ success is our biggest achievement.”
 
-EXAMPLES
-User: “I will start coding now.”
-You: “Awesome! If you’d like, our team at Teclury can help with architecture, AI integration, or deployment. What are you planning to build exactly?”
+PRICING RULE
+- Do NOT mention price unless user directly asks
 
-User: “Can you help my business?”
-You: “Absolutely. At Teclury we build AI chatbots, automation tools, and web applications. What type of business do you run?”
+REPLY LENGTH RULE
+- 3–5 short lines max
+- no long paragraphs
+- no repeated sentences
+- no marketing stories
+- use friendly emojis naturally (🤝🚀😊🎯✨)
 
--------------------------------
+CONFIRMATION RULE (IMPORTANT)
+If user says: ok / we can start / proceed / start project / let’s go
+→ ALWAYS reply briefly AND share contact:
+“Awesome! We’re happy to work with you 🤝 Please contact us at +91 8526521533 or contact@teclury.in to finalize the next step.”
 
-Conversation summary so far:
-{summary}
+UNKNOWN INFORMATION RULE
+If answer not in context:
+“I don’t have exact details right now. Please contact our team at +91 8526521533 or contact@teclury.in.”
 
-User message:
-{input}
+MEMORY
+Use summary to avoid repeating introductions and personalize replies
 
-Relevant company context:
-{context}
+ALWAYS END WITH ONE QUESTION
+Examples:
+- What are you planning to build?
+- Is this for business or personal use?
+- Do you already have a website or app?
 
-YOUR TASKS:
-1) Answer the user on behalf of Teclury
-2) Update the conversation summary (5–8 lines max)
-3) Maintain correct language
-4) Avoid long essays; be warm and professional
+INPUTS
+summary = {summary}
+input = {input}
+context = {context}
 
-Return ONLY valid JSON:
-
+OUTPUT (valid JSON only)
 {{
-"answer": "<your reply to the user>",
-"summary": "<updated conversation summary>"
+"answer": "<reply>",
+"summary": "<updated short summary>"
 }}
-
-""")
-
-    retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+"""
+)
+    
+    
+    # fewer docs = fewer tokens
+    retriever = vector_store.as_retriever(search_kwargs={"k": 2})
 
     document_chain = create_stuff_documents_chain(llm, prompt)
     retrieval_chain = create_retrieval_chain(retriever, document_chain)
-
+    
     return retrieval_chain
 
 
-# ----------------------------------------------------
-# CLEANUP JOB (idle > 1 hour)
-# ----------------------------------------------------
+# ---------------- CLEANUP THREAD ---------------- #
+
 def cleanup_idle_sessions():
     while True:
         now = datetime.utcnow()
@@ -167,15 +246,14 @@ def cleanup_idle_sessions():
         time.sleep(3600)
 
 
-# ----------------------------------------------------
-# FastAPI startup
-# ----------------------------------------------------
+# ---------------- STARTUP ---------------- #
+
 @app.on_event("startup")
 def startup_event():
-    global vectorstore, rag_chain
+    global vectorstore, rag_chain,retriever
 
     vectorstore = build_vectorstore()
-    rag_chain = setup_rag_chain(vectorstore)
+    rag_chain= setup_rag_chain(vectorstore)
 
     threading.Thread(target=cleanup_idle_sessions, daemon=True).start()
 
@@ -187,43 +265,77 @@ def health():
     return {"status": "OK", "ready": rag_chain is not None}
 
 
-# ----------------------------------------------------
-# Chat Endpoint (rolling summary)
-# ----------------------------------------------------
+# ---------------- CHAT ENDPOINT ---------------- #
+
 @app.post("/chat")
-def chat_endpoint(request: ChatRequest):
+def chat_endpoint(request: ChatRequest, http_request: Request):
+
     if rag_chain is None:
         raise HTTPException(status_code=503, detail="System not initialized")
 
-    session_id = request.session_id
-
-    # initialize summary if new session
-    if session_id not in store:
-        store[session_id] = {
-            "summary": "",
-            "last_activity": datetime.utcnow()
-        }
-
-    old_summary = store[session_id]["summary"]
-
     try:
-        response = rag_chain.invoke({
-            "input": request.query,
-            "summary": old_summary
-        })
+        # identify user via IP hash if no session
+        client_ip = http_request.client.host or "unknown-ip"
+        ip_session = hashlib.sha256(client_ip.encode()).hexdigest()[:16]
 
-        # Parse JSON output safely
+        if not request.session_id:
+            session_id = ip_session
+        elif request.session_id in store:
+            session_id = request.session_id
+        else:
+            session_id = ip_session
+
+        # rate limit check
+        limit_response = check_rate_limit(session_id)
+        if limit_response:
+            return limit_response
+
+        # initialize session
+        if session_id not in store:
+            store[session_id] = {
+                "summary": "",
+                "last_activity": datetime.utcnow()
+            }
+
+        old_summary = store[session_id]["summary"]
+        
+        # -------- model call with 429 handling -------- #
+        try:
+            response = rag_chain.invoke({
+                "input": request.query,
+                "summary": old_summary
+            })
+        except Exception as e:
+            print(e)
+            if "rate_limit" in str(e).lower() or "429" in str(e):
+                return {
+                    "status": "success",
+                    "answer": "We’re receiving a high number of requests right now 😅 Please try again in a minute.",
+                    "session_id": session_id,
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            raise
+
+        
+        
+
         import json
-        output = json.loads(response["answer"])
+        try:
+            output = json.loads(response["answer"])
+        except Exception:
+            raise HTTPException(
+                status_code=500,
+                detail="Model returned invalid JSON. Try again."
+            )
 
         new_answer = output["answer"]
         new_summary = output["summary"]
+        
 
-        # overwrite summary
-        store[session_id]["summary"] = new_summary
+        # trim summary to avoid ballooning tokens
+        store[session_id]["summary"] = new_summary[-2000:]
         store[session_id]["last_activity"] = datetime.utcnow()
-        print("New summary",new_summary)
-
+       
         return {
             "status": "success",
             "answer": new_answer,

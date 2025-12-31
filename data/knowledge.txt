@@ -1,424 +1,199 @@
-# Teclury – Company Knowledge Base (RAG Document)
+COMPANY :: Overview — What is Teclury?
+Teclury is a software and AI solutions company focused on building production-ready digital products for startups, small businesses, and growing teams.
+We work as a development partner, helping clients move:
+from idea → MVP
+MVP → pilot
+pilot → scalable product
+Our principle is:
+We build software that works — reliable, maintainable, and ready for real-world use.
 
-This document contains structured knowledge about Teclury, its services, technology stack, processes, pricing approach, AI capabilities, and support model.
-It is designed for use in an AI-powered assistant to answer client, partner, and candidate questions accurately and professionally.
+COMPANY :: Location
+Teclury operates as a remote-first distributed team based in India.
+We currently have 5 core team members.
+We serve global clients through:
+email
+WhatsApp
+video calls
 
----
+COMPANY :: Business Stage
+Teclury is a growing technology company —
+not a freelancer setup and not a large enterprise consultancy.
+Client benefits:
+fast execution
+direct engineer access
+founder involvement
+flexible engagement models
 
-## I. Company Overview (The “Who”)
+COMPANY :: Education Mission
+Teclury’s education mission is:
+All learning we provide is free.
+We don’t want to create skilled labour.
+We want to build smart, independent builders.
+We focus on:
+real project experience
+mentorship
+product-thinking
+Our primary goal is not revenue first —
+it is to build a skilled India where students become creators and founders.
 
-### Tell me about your company
+COMPANY :: Certifications or Awards
+We prioritize client success and shipped products rather than awards.
+Credibility comes from:
+deployed real software
+running our own AI products
+open-source AI lab
+long-term client relationships
+Our belief:
+Client growth is the real award.
 
-Teclury is a technology-driven software and AI solutions company focused on building **production-ready digital products** for startups, small businesses, and growing teams.
-We work as a **development partner**, not just a delivery vendor, helping clients move from idea to MVP, from MVP to pilot, and from pilot to scalable product.
-
-Our philosophy is simple: **we build software that works** — reliable, maintainable, and ready for real-world use.
-
----
-
-### Where are you located?
-
-Teclury operates as a **remote-first, distributed engineering team** with its core engineering base in **India**.
-This allows us to combine strong technical talent with cost efficiency while serving clients globally through digital collaboration tools like email, WhatsApp, and video calls.
-
----
-
-### How long have you been in business?
-
-Teclury was founded as a student-led engineering initiative and has evolved into a professional software and AI development company.
-Our experience comes not only from client projects but also from building and operating our **own AI products and platforms**.
-
----
-
-### Are you a startup or an established enterprise?
-
-Teclury is a **growing technology company** — not a large enterprise consultancy, but more than a freelance setup.
-This gives clients the advantage of:
-
-* Direct access to engineers
-* Faster execution
-* Founder-level involvement
-* Flexible engagement models
-
----
-
-### Do you have any certifications or awards?
-
-Rather than focusing on industry awards, Teclury prioritizes **client success and production outcomes**.
-Our credibility comes from:
-
-* Deploying real, working software
-* Building and maintaining our own AI products
-* Open-source contributions through our AI Lab
-* Long-term client partnerships
-
-Our belief is that **client growth is the real award**.
-
----
-
-### Why should I choose you over other IT agencies?
-
+COMPANY :: Why Choose Teclury?
 Clients choose Teclury because:
-
-* We focus on **execution, not just presentations**
-* We combine **full-stack engineering + AI expertise**
-* We are transparent, fast, and technically hands-on
-* We think long-term, not just project delivery
-* We are cost-effective without cutting corners
-
-We aim to act as a **technical partner or fractional CTO**, not a task-based vendor.
-
----
-
-## II. Services (The “What”)
-
-### What services do you offer?
-
-Teclury offers end-to-end technology services including:
-
-* Full-stack web development
-* Backend & API development
-* AI & machine learning solutions
-* Cloud & DevOps setup
-* UI/UX design
-* Digital marketing & SEO
-* Post-launch support and maintenance
-
----
-
-### Do you do mobile app development?
-
-Yes. We build:
-
-* Web-based mobile-first applications
-* Progressive Web Apps (PWAs)
-* Backend systems for mobile apps
-  We also integrate APIs that support Android and iOS applications.
-
----
-
-### Can you help with digital marketing?
-
-Yes. We support:
-
-* SEO-friendly website architecture
-* Landing pages for lead generation
-* Performance-focused UI/UX
-* Analytics and conversion tracking
-
-Our marketing support is tightly integrated with product engineering.
-
----
-
-## III. AI & Machine Learning (Core Strength)
-
-### Do you build custom AI models or use existing APIs?
-
-We primarily **build AI solutions using existing foundation models** (LLMs, vision models, embedding models) and customize them through:
-
-* Prompt engineering
-* Retrieval-Augmented Generation (RAG)
-* Agent workflows
-* Domain-specific data integration
-
-This approach is faster, more reliable, and cost-effective for most businesses.
-
----
-
-### Can you implement a chatbot for my business?
-
-Yes. We build:
-
-* Website chatbots
-* WhatsApp AI agents
-* Internal knowledge bots
-* Customer support assistants
-
-These bots can understand business data, answer questions accurately, and automate workflows.
-
----
-
-### Do you offer generative AI (LLM) integration?
-
-Yes. We integrate LLMs for:
-
-* Chatbots and assistants
-* Knowledge-based Q&A systems
-* Content automation
-* Sales and support workflows
-
-We focus on **guarded, reliable AI**, not uncontrolled outputs.
-
----
-
-### Can you help with computer vision projects?
-
-Yes. We work on:
-
-* Image classification
-* Inspection and detection pipelines
-* Automation use cases
-* Vision + AI integrations
-
----
-
-### What kind of machine learning solutions do you provide?
-
-* LLM-powered applications
-* RAG-based knowledge systems
-* AI agents with memory and tools
-* Automation and workflow intelligence
-* Data processing and analytics pipelines
-
----
-
-## IV. Technologies & Stack (The “How”)
-
-### What technology stack do you use?
-
-Our core stack includes:
-
-* Frontend: React, Next.js
-* Backend: Node.js, FastAPI (Python)
-* Databases: PostgreSQL, MongoDB
-* AI/ML: Python, LLM APIs, vector databases
-* DevOps: Docker, CI/CD
-* Cloud: VPS, AWS and cloud-agnostic deployments
-
----
-
-### Do you work with Python and Django?
-
-We work extensively with **Python**, primarily using **FastAPI** for high-performance APIs and AI backends.
-Django can be supported if required.
-
----
-
-### Are you experienced with React Native?
-
-We mainly focus on React (web) and API-driven mobile architectures.
-React Native support is possible depending on project requirements.
-
----
-
-### Which cloud providers do you support?
-
-We support:
-
-* AWS
-* VPS-based deployments
-* Cloud-agnostic setups
-
-We avoid vendor lock-in whenever possible.
-
----
-
-### Do you use open-source or proprietary software?
-
-We strongly prefer **open-source technologies** for flexibility, transparency, and long-term sustainability.
-
----
-
-## V. Project Management & Process (The “When”)
-
-### What is your development process?
-
-We follow an **Agile, milestone-based approach**:
-
-1. Discovery & planning
-2. MVP or prototype
-3. Iterative development
-4. Deployment & optimization
-5. Support & scaling
-
----
-
-### How long does it take to build an MVP?
-
-A basic MVP typically takes **2–6 weeks**, depending on scope and complexity.
-
----
-
-### Will I have a dedicated project manager?
-
-Yes. Every project has:
-
-* A primary point of contact
-* Clear communication channels
-* Regular updates
-
----
-
-### How often will we have updates or meetings?
-
-* Weekly or milestone-based updates
-* Meetings as needed via video or chat
-* Async communication for speed
-
----
-
-### What if I want to change features during development?
-
-We allow controlled scope changes and discuss impact on timeline and budget transparently.
-
----
-
-## VI. Budget & Pricing (The “How Much”)
-
-### How much does it cost to build a website or app?
-
-We offer **transparent, flexible pricing**:
-
-* Simple landing website: **below ₹10,000**
-* Simple full-stack project or MVP: **below ₹25,000**
-* Advanced web or AI projects: **₹25,000 – ₹1,00,000**
-* Large platforms & SaaS systems: **above ₹1,00,000**
-
-Final pricing depends on scope and requirements.
-
----
-
-### Do you offer fixed-price contracts?
-
-Yes, especially for MVPs and clearly defined projects.
-
----
-
-### Do you require a deposit upfront?
-
-Yes. Projects usually start with an initial advance, followed by milestone-based payments.
-
----
-
-### Is there a maintenance fee?
-
-Maintenance and support are optional and discussed based on project needs.
-
----
-
-## VII. Data Privacy, Security & IP (The “Safety”)
-
-### Will I own the source code after the project is done?
-
-Yes. For custom development projects, clients own the source code after full payment.
-
----
-
-### Do you sign NDAs?
-
-Yes. We are comfortable signing NDAs and handling confidential information responsibly.
-
----
-
-### How do you ensure my data is secure?
-
-* Secure API practices
-* Access controls
-* Environment-based secrets
-* Guarded AI architectures
-
----
-
-### Is your software GDPR compliant?
-
-We build systems that **can be configured to meet GDPR and data protection requirements**, depending on client needs.
-
----
-
-### Do you outsource your work?
-
-No. All development is handled **in-house by our core team**.
-
----
-
-## VIII. Portfolio & Industries (The “Proof”)
-
-### Do you have a portfolio or examples?
-
-Yes. Our portfolio includes:
-
-* Custom client projects
-* AI-based internal products
-* Open-source tools and datasets
-
----
-
-### Have you worked in specific industries?
-
-We are industry-agnostic and have experience across:
-
-* SaaS
-* E-commerce
-* Education
-* AI tooling
-* Business automation
-
----
-
-### Can you build something similar to Uber, Airbnb, or ChatGPT?
-
-We can build **MVPs or core systems inspired by such platforms**, focusing on essential features rather than cloning entire ecosystems.
-
----
-
-## IX. Support & Maintenance (The “Aftercare”)
-
-### What happens after the app is launched?
-
+execution-first mindset
+strong AI + full-stack capability
+transparent & fast communication
+long-term technology partner mindset
+cost-effective engineering
+We act as:
+Technical partner or fractional CTO — not task vendors.
+SERVICES :: What services do you offer?
+Teclury offers:
+full-stack web development
+backend & API development
+AI & ML solutions
+chatbot development
+cloud & DevOps
+UI/UX design
+SEO & digital marketing
+post-launch support
+
+SERVICES :: Mobile Development
+We build:
+mobile-first web apps
+Progressive Web Apps
+backend systems for mobile apps
+We also integrate APIs for Android & iOS apps.
+
+PRODUCTS :: Overview
+Teclury builds AI products to help businesses and developers work faster.
+Product 1 — Teclury SalesMind AI
+An AI-powered sales assistant for:
+WhatsApp
+web chat
+Features:
+auto-reply to customer messages
+product catalog + order handling
+supports multiple messaging platforms
+auto-generates ecommerce site based on theme
+seller dashboard
+Target users:
+small & medium businesses
+Product 2 — Teclury KnowledgeCore API
+A knowledge-based chatbot API for developers.
+Features:
+plug-and-play REST API
+train on PDF, docs, databases
+RAG-based accurate responses
+Goal:
+Make AI knowledge chatbots easy for developers.
+LAB :: Teclury AI Lab
+Teclury AI Lab is an open-source AI learning playground.
+Lab produces:
+datasets
+AI models
+AI agents
+end-to-end learning projects
+Everything is:
+free
+open-source
+student-friendly
+industry-relevant
+Some projects may become full Teclury products in future.
+Goal:
+Build confident AI builders, not just tool users.
+
+AI :: Types of AI Solutions We Build
+Teclury delivers:
+LLM-powered applications
+RAG chat systems
+AI agents with tools & memory
+workflow automation
+analytics & data pipelines
+
+STACK :: Technologies
+Core stack includes:
+React, Next.js
+Node.js, FastAPI
+PostgreSQL, MongoDB
+Python & AI APIs
+vector databases
+Docker & CI/CD
+VPS and AWS
+
+PROCESS :: Development Flow
+We follow:
+discovery & planning
+MVP or prototype
+iterative development
+deployment
+support + scaling
+
+TIMELINE :: MVP Duration
+Typical MVP time:
+2–6 weeks or more depending on scope.
+
+BUSINESS MODEL :: Product or Service Based?
+Teclury is:
+product-based (AI products we own)
+service-based (we build for clients)
+Products automate workflows.
+Services deliver custom solutions.
+
+PRICING :: High Level Ranges
+landing website — below ₹10,000
+MVP / simple full-stack — below ₹25,000
+advanced AI / web app — ₹25,000–₹1,00,000
+large SaaS — above ₹1,00,000
+Exact pricing depends on scope.
+
+LEGAL :: Code Ownership
+After full payment:
+Client owns the source code.
+Bug fixes on our code are free.
+If the client modifies code themselves, full responsibility is not guaranteed.
+
+SECURITY :: NDA and Compliance
+We:
+sign NDAs
+follow secure development practices
+can support GDPR-ready builds
+SUPPORT :: After Launch
 We provide:
+bug fixes
+monitoring
+feature enhancements
+scaling support
+Support plans available.
 
-* Bug fixes
-* Performance monitoring
-* Feature improvements
-* Scaling support
+HOSTING :: Do you host applications?
+Yes.
+We deploy on:
+VPS
+cloud providers
+CAREERS :: Hiring Status
+Teclury works with:
+motivated engineers
+learners
+interns
+Internships are learning-focused & real-project based.
 
----
+CONTACT :: How to Reach Teclury
+Email: contact@teclury.in
+Website: https://www.teclury.in
+PhoneNumber: +918526521533 
 
-### Do you provide free support?
-
-Basic post-launch support is included for a limited period.
-Long-term support is available as a paid plan.
-
----
-
-### Can you host the application for me?
-
-Yes. We can deploy and manage hosting on VPS or cloud platforms.
-
----
-
-## X. Careers & Partnerships (The “Internal”)
-
-### Are you hiring developers?
-
-We are always open to working with motivated engineers and learners.
-
----
-
-### Do you offer internships?
-
-Yes. We support **learning-focused internships** aligned with real projects.
-
----
-
-### How can I apply for a job or internship?
-
-Contact us via:
-
-* Email: [contact@teclury.in](mailto:contact@teclury.in)
-* Website: [https://www.teclury.in](https://www.teclury.in)
-
----
-
-### Do you partner with other agencies or founders?
-
-Yes. We are open to:
-
-* Technical partnerships
-* Startup collaborations
-* White-label development work
-
----
-
-**End of Knowledge Document**
-
+TEAM :: Founders & Leadership
+Manush N — Founder & COO
+Full-stack and AI engineer focusing on scalable systems.
+Bharathraji P — Co-Founder & CEO
+AI engineer and trainer leading education & technical efforts.
+They maintain a hands-on engineering culture.
