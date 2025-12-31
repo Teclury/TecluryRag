@@ -2,8 +2,7 @@ fastapi
 uvicorn
 
 python-dotenv
-
-boto3
+pydantic
 
 langchain
 langchain-core
@@ -11,9 +10,7 @@ langchain-community
 langchain-classic
 langchain-text-splitters
 
+langchain-openai
 langchain-huggingface
 sentence-transformers
-
-langchain-google-genai
-
 faiss-cpu
