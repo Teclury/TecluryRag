@@ -18,6 +18,7 @@ load_dotenv()
 client = OpenAI()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+FRONTEND_URL=os.getenv("FRONTEND_URL")
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY not found")
 
@@ -27,7 +28,7 @@ app = FastAPI(title="Teclury RAG Chatbot with Rolling AI Summary")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[FRONTEND_URL],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -48,7 +49,7 @@ session_summaries = {}
 
 rate_limiters = {}
 MAX_RPM = 5
-MAX_RPD = 30
+MAX_RPD = 20
 
 def chunk_text(text, chunk_size=600, overlap=150):
     chunks = []
