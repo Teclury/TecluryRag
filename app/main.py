@@ -1,63 +1,65 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-import hashlib
-import os
-from pydantic import BaseModel
-from datetime import datetime
-from dotenv import load_dotenv
 import threading
 import time
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from openai import OpenAI
+from dotenv import load_dotenv
+from datetime import datetime
+import numpy as np
+import hashlib
+import os
+import json
 
-# LangChain Imports
-from langchain_community.document_loaders import TextLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_classic.chains.combine_documents import create_stuff_documents_chain
-from langchain_classic.chains.retrieval import create_retrieval_chain
+# -------------------- ENV + CLIENT -------------------- #
 
 load_dotenv()
+client = OpenAI()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY not found in environment variables")
+    raise ValueError("OPENAI_API_KEY not found")
 
-app = FastAPI(
-    title="Teclury RAG Chatbot with Rolling Summary Memory",
-    description="RAG + Memory using ONLY rolling summary",
-    version="1.0.0"
-)
+# -------------------- FASTAPI APP -------------------- #
+
+app = FastAPI(title="Teclury RAG Chatbot with Rolling AI Summary")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-vectorstore: FAISS | None = None
-rag_chain = None
+# -------------------- FILE PATHS -------------------- #
 
+DATA_FILE = "data/knowledge.txt"
+VECTOR_FILE = "vectors.json"
 
-# session summary store
-store = {}
+# -------------------- MEMORY -------------------- #
 
-# simple per-session rate limiter
+vector_store = []   # list of {id,text,embedding}
+
+# session_id -> {summary, last_activity}
+session_summaries = {}
+
+# -------------------- RATE LIMIT -------------------- #
+
 rate_limiters = {}
 MAX_RPM = 5
 MAX_RPD = 30
 
+def chunk_text(text, chunk_size=600, overlap=150):
+    chunks = []
+    start = 0
 
-class ChatRequest(BaseModel):
-    query: str
-    session_id: str | None = None
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start += chunk_size - overlap
 
-
-# ---------------- RATE LIMIT ---------------- #
+    return chunks
 
 def check_rate_limit(session_id: str):
     now = datetime.utcnow()
@@ -105,43 +107,32 @@ def check_rate_limit(session_id: str):
             }
         )
 
-    # increment counters
     rate_limiters[session_id]["minute"] = [minute_count + 1, minute_time]
     rate_limiters[session_id]["day"] = [day_count + 1, day_time]
 
     return None
 
 
-# ---------------- VECTOR STORE ---------------- #
+def cleanup_idle_sessions():
+    while True:
+        now = datetime.utcnow()
+        sessions = list(session_summaries.keys())
 
-def build_vectorstore():
-    file_path = "data/knowledge.txt"
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Knowledge file not found at: {file_path}")
+        for session_id in sessions:
+            try:
+                last_activity = session_summaries[session_id]["last_activity"]
+            except KeyError:
+                continue
 
-    loader = TextLoader(file_path, encoding="utf-8")
-    docs = loader.load()
+            idle_minutes = (now - last_activity).total_seconds() / 60
 
-    # smaller chunks = fewer tokens
-    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-    chunks = splitter.split_documents(docs)
+            if idle_minutes >= 60:
+                del session_summaries[session_id]
+                print(f"🧹 Deleted session {session_id} due to inactivity")
 
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        time.sleep(3600)
 
-    return FAISS.from_documents(chunks, embeddings)
-
-
-# ---------------- RAG SETUP ---------------- #
-
-def setup_rag_chain(vector_store):
-
-    llm = ChatOpenAI(
-        model="gpt-4.1-mini",
-        temperature=0.3,
-        max_tokens=300  # cap output tokens
-    )
-
-    prompt = ChatPromptTemplate.from_template("""
+SYSTEM_PROMPT = """
 You are Nora, a friendly and professional AI assistant for Teclury (IT & AI solutions company). Speak like a real human team member.
 
 ROLE
@@ -156,6 +147,7 @@ LANGUAGE RULES (STRICT)
        - **Tanglish Rule:** If the user types in **Tanglish** (Tamil words using English letters), your response must be converted into **proper Tamil script (தமிழ்)**.
        - **Example:** - User: "Neenga enna services tharinga?" (Tanglish) -> You: "நாங்கள் Web Development மற்றும் AI சேவைகளை வழங்குகிறோம்." (Tamil)
          - User: "Sughamaano?" (Malayalam) -> You: "അതെ, സുഖമാണ്! നിങ്ങൾക്ക് എന്ത് ഐടി സഹായമാണ് വേണ്ടത്?" (Malayalam)
+         ***Do not change the language until use use it language dedection is very very very most importtant***
 
 
 GREETING RULE
@@ -164,6 +156,10 @@ If user says only hello/hi/vanakkam/namaste/how are you:
 “Hi! I’m Nora, your AI assistant from Teclury. How can we help you today?”
 If they ask how are you → say you’re doing great and ask them back
 Do not introduce again if summary exists
+**IF user says How are you "Say iam doing great , how about your"**
+***And ask for uses prefered language if it is not in summary. do not remove the prefered language from the summary if the user says to change change the language until dont change it***
+
+If **users name is not in the summary try to ask the name at the correct time of the conversation.**
 
 SCOPE OF ANSWERS
 Answer ONLY Teclury-related topics:
@@ -216,133 +212,162 @@ OUTPUT (valid JSON only)
 "summary": "<updated short summary>"
 }}
 """
-)
-    
-    
-    # fewer docs = fewer tokens
-    retriever = vector_store.as_retriever(search_kwargs={"k": 2})
 
-    document_chain = create_stuff_documents_chain(llm, prompt)
-    retrieval_chain = create_retrieval_chain(retriever, document_chain)
-    
-    return retrieval_chain
+def get_embedding(text: str):
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text
+    )
+    return response.data[0].embedding
 
 
-# ---------------- CLEANUP THREAD ---------------- #
+def build_vectors_from_text():
+    global vector_store
 
-def cleanup_idle_sessions():
-    while True:
-        now = datetime.utcnow()
-        sessions = list(store.keys())
+    if not os.path.exists(DATA_FILE):
+        raise FileNotFoundError(f"{DATA_FILE} not found")
 
-        for session_id in sessions:
-            last_activity = store[session_id]["last_activity"]
-            idle_minutes = (now - last_activity).total_seconds() / 60
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        text = f.read()
 
-            if idle_minutes >= 60:
-                del store[session_id]
-                print(f"🧹 Deleted session {session_id} due to inactivity")
+    chunks = chunk_text(text)
+    print("Chunks created:", len(chunks))
 
-        time.sleep(3600)
+    vector_store = []
+
+    for i, chunk in enumerate(chunks):
+        emb = get_embedding(chunk)
+        vector_store.append({
+            "id": i,
+            "text": chunk,
+            "embedding": emb
+        })
+
+    with open(VECTOR_FILE, "w") as f:
+        json.dump(vector_store, f)
+
+    print("✅ vectors.json created")
 
 
-# ---------------- STARTUP ---------------- #
+def load_vectors():
+    global vector_store
+    with open(VECTOR_FILE) as f:
+        vector_store = json.load(f)
+    print("📂 vectors.json loaded")
+
 
 @app.on_event("startup")
-def startup_event():
-    global vectorstore, rag_chain,retriever
-
-    vectorstore = build_vectorstore()
-    rag_chain= setup_rag_chain(vectorstore)
+def startup():
+    if os.path.exists(VECTOR_FILE):
+        load_vectors()
+    else:
+        build_vectors_from_text()
 
     threading.Thread(target=cleanup_idle_sessions, daemon=True).start()
 
-    print("🚀 RAG + rolling summary memory ready")
+    print("🚀 Teclury RAG chatbot ready")
 
 
-@app.get("/")
-def health():
-    return {"status": "OK", "ready": rag_chain is not None}
+def cosine(a, b):
+    a = np.array(a)
+    b = np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 
-# ---------------- CHAT ENDPOINT ---------------- #
+def search_chunks(query: str, k: int = 3):
+    query_vec = get_embedding(query)
+
+    scored = []
+    for item in vector_store:
+        score = cosine(query_vec, item["embedding"])
+        scored.append((score, item))
+
+    scored.sort(reverse=True, key=lambda x: x[0])
+    return scored[:k]
+
+
+class ChatRequest(BaseModel):
+    query: str
+    session_id: str | None = None
+
 
 @app.post("/chat")
-def chat_endpoint(request: ChatRequest, http_request: Request):
-
-    if rag_chain is None:
-        raise HTTPException(status_code=503, detail="System not initialized")
+def chat(req: ChatRequest, http_request: Request):
 
     try:
-        # identify user via IP hash if no session
-        client_ip = http_request.client.host or "unknown-ip"
-        ip_session = hashlib.sha256(client_ip.encode()).hexdigest()[:16]
+        # session
+        client_ip = http_request.client.host or "unknown"
+        default_session = hashlib.sha256(client_ip.encode()).hexdigest()[:16]
+        session_id = default_session
 
-        if not request.session_id:
-            session_id = ip_session
-        elif request.session_id in store:
-            session_id = request.session_id
-        else:
-            session_id = ip_session
-
-        # rate limit check
+        # rate limit
         limit_response = check_rate_limit(session_id)
         if limit_response:
             return limit_response
 
-        # initialize session
-        if session_id not in store:
-            store[session_id] = {
+        # init session
+        if session_id not in session_summaries:
+            session_summaries[session_id] = {
                 "summary": "",
                 "last_activity": datetime.utcnow()
             }
 
-        old_summary = store[session_id]["summary"]
-        
-        # -------- model call with 429 handling -------- #
-        try:
-            response = rag_chain.invoke({
-                "input": request.query,
-                "summary": old_summary
-            })
-        except Exception as e:
-            print(e)
-            if "rate_limit" in str(e).lower() or "429" in str(e):
-                return {
-                    "status": "success",
-                    "answer": "We’re receiving a high number of requests right now 😅 Please try again in a minute.",
-                    "session_id": session_id,
-                    "timestamp": datetime.utcnow().isoformat(),
+        old_summary = session_summaries[session_id]["summary"]
+
+        # retrieve chunks
+        results = search_chunks(req.query)
+        context = "\n\n".join([doc["text"] for _, doc in results])
+
+        # LLM call
+        completion = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps({
+                        "summary": old_summary,
+                        "context": context,
+                        "input": req.query
+                    })
                 }
-            raise
+            ]
+        )
 
-        
-        
+        raw = completion.choices[0].message.content
 
-        import json
-        try:
-            output = json.loads(response["answer"])
-        except Exception:
-            raise HTTPException(
-                status_code=500,
-                detail="Model returned invalid JSON. Try again."
-            )
+        parsed = json.loads(raw)
 
-        new_answer = output["answer"]
-        new_summary = output["summary"]
-        
+        answer = parsed["answer"]
+        new_summary = parsed["summary"]
 
-        # trim summary to avoid ballooning tokens
-        store[session_id]["summary"] = new_summary[-2000:]
-        store[session_id]["last_activity"] = datetime.utcnow()
-       
+        # store new summary
+        session_summaries[session_id] = {
+            "summary": new_summary,
+            "last_activity": datetime.utcnow()
+        }
+
         return {
             "status": "success",
-            "answer": new_answer,
+            "answer": answer,
+            "summary": new_summary,
             "session_id": session_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.utcnow().isoformat()
         }
 
     except Exception as e:
-        print("Chat Error:", e)
+        print("Chat error:", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/")
+def health():
+    return {
+        "ok": True,
+        "vector_count": len(vector_store),
+        "session_count": len(session_summaries)
+    }
+
